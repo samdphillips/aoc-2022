@@ -39,3 +39,31 @@
 
   (process input-stream))
 
+(module* part2a #f
+  (require (only-in racket/base [< r<]))
+
+  ;; Instead of inserting into a heap or accumulating a list just track the top
+  ;; three items.
+  (define empty (list 0 0 0))
+
+  (define (insert t v)
+    (define-match-expander <
+      (syntax-parser
+        [(< val pat) #'(? (λ (n) (r< n val)) pat)]
+        [(< val) #'(< val _)]))
+    (match t
+      [(list _ c (< v b)) (list c b v)]
+      [(list _ (< v c) a) (list c v a)]
+      [(list (< v) b a) (list v b a)]
+      [(list _ _ _) t]))
+
+  (define (process in)
+    (define (process1 in cur-elf top3)
+      (match in
+        [(stream* (->num n) rest) (process1 rest (+ n cur-elf) top3)]
+        [(stream* "" rest) (process1 rest 0 (insert top3 cur-elf))]
+        [(? stream-empty?) (apply + top3)]))
+    (process1 in 0 empty))
+
+  (process input-stream))
+
