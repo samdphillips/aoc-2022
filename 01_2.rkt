@@ -23,10 +23,7 @@
        (heap-add! all-elves cur-elf)
        (process1 rest 0)]
       [(? stream-empty?)
-       (define (take-min!)
-         (begin0 (heap-min all-elves)
-           (heap-remove-min! all-elves)))
-       (+ (take-min!) (take-min!) (take-min!))]))
+       (for/sum ([e (in-heap/consume! all-elves)] [_i 3]) e)]))
   (process1 in 0))
 
 (process input-stream)
