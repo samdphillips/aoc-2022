@@ -15,11 +15,9 @@
 
 (defrel (caro c a) (fresh (d) (== c (cons a d))))
 (defrel (cdro c d) (fresh (a) (== c (cons a d))))
-(defrel (nullo c) (== c null))
 
 (defrel (lookup them us a b)
   (conde
-   [(nullo a) (== #t #f)]
    [(fresh (a0 b0)
       (caro a a0) (caro b b0)
       (== a0 them) (== b0 us))]
