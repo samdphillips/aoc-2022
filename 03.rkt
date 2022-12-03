@@ -32,5 +32,13 @@
             [common-item (in-set (set-intersect a b))])
     (item-priority common-item)))
 
-(module* part2 #f)
+(module* part2 #f
+  (define (parse-rucksack2 s)
+    (define-values (a b) (parse-rucksack s))
+    (set-union a b))
+
+  (for*/sum
+   ([sacks (in-slice 3 (stream-map parse-rucksack2 input-stream))]
+    [common-item (in-set (apply set-intersect sacks))])
+   (item-priority common-item)))
 
