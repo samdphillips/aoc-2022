@@ -22,6 +22,10 @@
   (and (range-contains? r0 (range-start r1))
        (range-contains? r0 (range-end r1))))
 
+(define (range-overlaps? r0 r1)
+  (or (range-contains? r0 (range-start r1))
+      (range-contains? r0 (range-end r1))))
+
 (define (parse-assignments s)
   (match s
     [(regexp #px"^(\\d+)-(\\d+),(\\d+)-(\\d+)$"
@@ -29,12 +33,14 @@
      (values (range a b) (range c d))]))
 
 (module* part1 #f
-  (for/sum ([s input-stream])
-    (define-values (r0 r1) (parse-assignments s))
-    (if (or (range-fully-contains? r0 r1)
-            (range-fully-contains? r1 r0))
-        1
-        0)))
+  (for/sum ([s input-stream]
+            #:do [(define-values (r0 r1) (parse-assignments s))]
+            #:when (or (range-fully-contains? r0 r1)
+                       (range-fully-contains? r1 r0)))
+        1))
 
-(module* part2 #f)
-
+(module* part2 #f
+  (for/sum ([s input-stream]
+            #:do [(define-values (r0 r1) (parse-assignments s))]
+            #:when (or (range-overlaps? r0 r1) (range-overlaps? r1 r0)))
+    1))
