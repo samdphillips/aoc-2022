@@ -12,6 +12,21 @@
 (define (empty-string? s)
   (zero? (string-length s)))
 
+(define (stream-split s pred?)
+  (define (stream-pred? s)
+    (pred? (stream-first s)))
+  (define (first s)
+    (cond
+      [(stream-empty? s) empty-stream]
+      [(stream-pred? s) empty-stream]
+      [else (stream-cons (stream-first s) (first (stream-rest s)))]))
+  (define (second s)
+    (cond
+      [(stream-empty? s) empty-stream]
+      [(stream-pred? s) (stream-rest s)]
+      [else (stream-lazy (second (stream-rest s)))]))
+  (values (first s) (second s)))
+
 (define (parse-column s n)
   (define i (add1 (* 4 n)))
   (string-ref s i))
@@ -34,7 +49,7 @@
     (define r (parse-row (stream-first in) stacks))
     (cond
       [r (build (stream-rest in))]
-      [else (values stacks (stream-rest (stream-rest in)))]))
+      [else stacks]))
   (build in))
 
 (define (take-crates stk amount)
@@ -63,9 +78,11 @@
     (vector-set! stacks src src-stk)
     (vector-set! stacks dst dst-stk))
 
-  (define-values (stacks insts) (parse-stacks input-stream))
+  (define-values (stacks-input insts-input)
+    (stream-split input-stream empty-string?))
+  (define stacks (parse-stacks stacks-input))
 
-  (for ([s insts])
+  (for ([s insts-input])
     (match s
       [(regexp #px"move (\\d+) from (\\d+) to (\\d+)"
                (list _ (->n amount) (->n src) (->n dst)))
@@ -87,9 +104,11 @@
     (vector-set! stacks src src-stk)
     (vector-set! stacks dst dst-stk))
 
-  (define-values (stacks insts) (parse-stacks input-stream))
+  (define-values (stacks-input insts-input)
+    (stream-split input-stream empty-string?))
+  (define stacks (parse-stacks stacks-input))
 
-  (for ([s insts])
+  (for ([s insts-input])
     (match s
       [(regexp #px"move (\\d+) from (\\d+) to (\\d+)"
                (list _ (->n amount) (->n src) (->n dst)))
