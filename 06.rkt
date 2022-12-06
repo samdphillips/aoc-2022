@@ -10,17 +10,18 @@
 (define (bytes->set bs)
   (for/set ([b (in-bytes bs)]) b))
 
-(define (bytes-marker-chunk bs i)
-  (subbytes bs (- i 4) i))
-
-(define (bytes-find-packet-marker bs)
-  (for/first ([i (in-range 4 (bytes-length bs))]
-              #:do [(define marker (bytes->set (bytes-marker-chunk bs i)))]
-              #:when (= 4 (set-count marker)))
+(define ((make-bytes-find-marker size) bs)
+  (define (marker-chunk i)
+    (subbytes bs (- i size) i))
+  (for/first ([i (in-range size (bytes-length bs))]
+              #:do [(define marker (bytes->set (marker-chunk i)))]
+              #:when (= size (set-count marker)))
     i))
 
 (module* part1 #f
+  (define bytes-find-packet-marker (make-bytes-find-marker 4))
   (bytes-find-packet-marker input-bytes))
 
-(module* part2 #f)
-
+(module* part2 #f
+  (define bytes-find-message-marker (make-bytes-find-marker 14))
+  (bytes-find-message-marker input-bytes))
