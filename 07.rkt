@@ -52,17 +52,32 @@
       [(? directory?) (directory-size v)]
       [(file _ size) size])))
 
-(define (find-small-directories dir yield)
+(define (find-directories dir select? yield)
   (for ([f (in-hash-values (directory-contents dir))]
         #:when (directory? f))
-    (find-small-directories f yield))
-  (when (<= (directory-size dir) 100000)
+    (find-directories f select? yield))
+  (when (select? dir)
     (yield dir)))
 
 (define (find-small-directories-total dir)
-  (for/sum ([d (in-generator (find-small-directories dir yield))])
+  (define (select? d)
+    (<= (directory-size d) 100000))
+  (for/sum ([d (in-generator (find-directories dir select? yield))])
     (directory-size d)))
 
+(define total-capacity 70000000)
+(define total-needed-capacity 30000000)
+
+(define (find-directory-to-delete root)
+  (define free-capacity (- total-capacity (directory-size root)))
+  (define needed-capacity (- total-needed-capacity free-capacity))
+  (define (select? d)
+    (>= (directory-size d) needed-capacity))
+  (define candidates
+    (for/list ([candidate (in-generator
+                           (find-directories root select? yield))])
+      candidate))
+  (directory-size (car (sort candidates < #:key directory-size))))
 
 (define t
   #<<T
@@ -94,7 +109,7 @@ T
 
 (define inp
   (call-with-input-string t
-                          (λ~>> (in-port read-line) sequence->stream)))
+    (λ~>> (in-port read-line) sequence->stream)))
 
 (module* part1 #f
   )
