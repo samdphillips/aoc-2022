@@ -93,6 +93,16 @@ TEST
 (define (~rope h t)
   (~a "(" h ", " t ")"))
 
+(define (calculate-rope-moves rs move)
+  (match rs
+    [(cons h (and (cons t _) rs))
+     (cons move (calculate-rope-moves rs (tail-move h t move)))]
+    [_ (list move)]))
+
+(define (rope-move rs ms)
+  (for/list ([r (in-list rs)] [m (in-list ms)])
+    (+ r (dir->offset m))))
+
 (module* part1 #f
   (for/fold ([h 0] [t 0] [t-visit (set 0)]
              #:result (set-count t-visit))
@@ -106,5 +116,13 @@ TEST
     ;(displayln (~a (~rope h t) " -> " (~rope nh nt)))
     (values nh nt (set-add t-visit nt))))
 
-(module* part2 #f)
-
+(module* part2 #f
+  (for/fold ([r (make-list 10 0)] [t-visit (set 0)]
+             #:result (set-count t-visit))
+            ([inst input-stream]
+             #:do [(define move (car inst))
+                   (define count (cdr inst))]
+             [j (in-range count)])
+    (define nr (rope-move r (calculate-rope-moves r move)))
+    (define t (list-ref nr 9))
+    (values nr (set-add t-visit t))))
