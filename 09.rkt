@@ -51,33 +51,43 @@ TEST
 (define (offset->dir offset)
   (car (run 1 (dir) (dir-offset dir offset))))
 
-(define (tail-move rel move)
+(define (tail-move h t move)
+  (define rel (offset->dir (- t h)))
   (match* {rel move}
     [{rel move} #:when (equal? rel move) 'S]
     [{'S _} 'S]
+    [{_ 'S} 'S]
 
-    [{'U 'D} 'D]
-    [{'U (or 'R 'L)} 'S]
+    [{'U (or 'UR 'R 'L 'UL)} 'S]
+    [{'U d} d]
 
-    [{'UR (or 'D 'L)} 'DL]
+    [{'UR 'DR} 'D]
+    [{'UR 'UL} 'L]
+    [{'UR (or 'D 'DL 'L)} 'DL]
     [{'UR (or 'U 'R)} 'S]
 
-    [{'R 'L} 'L]
-    [{'R (or 'U 'D)} 'S]
+    [{'R (or 'U 'UR 'DR 'D)} 'S]
+    [{'R d} d]
 
-    [{'DR (or 'U 'L)} 'UL]
+    [{'DR 'UR} 'U]
+    [{'DR 'DL} 'L]
+    [{'DR (or 'U 'UL 'L)} 'UL]
     [{'DR (or 'R 'D)} 'S]
 
-    [{'D 'U} 'U]
-    [{'D (or 'R 'L)} 'S]
+    [{'D (or 'R 'DR 'DL 'L)} 'S]
+    [{'D d} d]
 
+    [{'DL 'DR} 'R]
+    [{'DL 'UL} 'U]
+    [{'DL (or 'U 'UR 'R)} 'UR]
     [{'DL (or 'D 'L)} 'S]
-    [{'DL (or 'U 'R)} 'UR]
 
-    [{'L 'R} 'R]
-    [{'L (or 'U 'D)} 'S]
+    [{'L (or 'U 'D 'DL 'UL)} 'S]
+    [{'L d} d]
 
-    [{'UL (or 'R 'D)} 'DR]
+    [{'UL 'UR} 'R]
+    [{'UL 'DL} 'D]
+    [{'UL (or 'R 'DR 'D)} 'DR]
     [{'UL (or 'U 'L)} 'S]))
 
 (define (~rope h t)
@@ -90,8 +100,7 @@ TEST
              #:do [(define h-move (car inst))
                    (define count (cdr inst))]
              [j (in-range count)])
-    (define t-rel (offset->dir (- t h)))
-    (define t-move (tail-move t-rel h-move))
+    (define t-move (tail-move h t h-move))
     (define nh (+ (dir->offset h-move) h))
     (define nt (+ (dir->offset t-move) t))
     ;(displayln (~a (~rope h t) " -> " (~rope nh nt)))
