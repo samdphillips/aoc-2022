@@ -37,7 +37,7 @@ Monkey 3:
     If false: throw to monkey 1
 }
 
-(struct monkey (id items proc) #:transparent)
+(struct monkey (id items modulus proc) #:transparent)
 
 (define-match-expander ->atom
   (syntax-parser
@@ -62,13 +62,15 @@ Monkey 3:
   (define operation (make-operation rator rand0 rand1))
   (monkey id
           items
+          div-test
           (lambda (o monkeys)
-            (define n (quotient (operation o) 3))
+            ;(define n (quotient (operation o) 3))
+            (define n (operation o))
             (monkey-update-items! monkeys
                                   (if (zero? (remainder n div-test))
                                       if-true
                                       if-false)
-                                  n))))
+                                  (remainder n mlcm)))))
 
 (define (monkey-update-items! monkeys i item)
   (define m (vector-ref monkeys i))
@@ -115,9 +117,16 @@ Monkey 3:
 
 (define monkeys (for/vector ([m init-stream]) m))
 (define scores (make-vector (vector-length monkeys) 0))
+(define mlcm (apply lcm (for/list ([m monkeys]) (monkey-modulus m))))
 
-(for ([x 20])
+(for ([x 10000])
+  #;
+  (match x
+    [(or 1 20 1000 5000 9000) (displayln scores)]
+    [_ (void)])
   (process-round monkeys scores))
+
+(sort (vector->list scores) <)
 
 (module* part1 #f)
 
