@@ -52,8 +52,8 @@
      (cons (read-coord inp) (read-tail))]))
 
 (define input-stream
-  (~>> (open-aoc-input (find-session) 2022 14 #:cache #t)
-       #;test-input
+  (~>> #;(open-aoc-input (find-session) 2022 14 #:cache #t)
+       test-input
        (in-port read-rock-path)
        sequence->stream))
 
@@ -96,13 +96,13 @@
 (define (next-move p env limit)
   (define (step p m*)
     (cond
-      [(< limit (imag-part p)) #f]
-      [(null? m*) p]
+      [(null? m*) (if (= 500 p) #f p)]
       [else
        (define p* (+ p (car m*)))
-       (if (hash-has-key? env p*)
-           (step p (cdr m*))
-           (step p* init-m*))]))
+       (cond
+         [(= limit (imag-part p*)) (step p (cdr m*))]
+         [(hash-has-key? env p*) (step p (cdr m*))]
+         [else (step p* init-m*)])]))
   (step p init-m*))
 
 (define env
@@ -110,11 +110,12 @@
     (trace-rock-path env p*)))
 
 (define limit
-  (for/fold ([m #f]) ([v (in-hash-keys env)])
+  (for/fold ([m #f] #:result (+ 2 m))
+            ([v (in-hash-keys env)])
     (if m (max m (imag-part v)) (imag-part v))))
 
 (for/fold ([env env] [i 0] #:result i)
-          ([i (in-naturals 0)]
+          ([i (in-naturals 1)]
            #:do [(define p (next-move 500 env limit))]
            #:break (not p))
   (values (hash-set env p 'sand) i))
