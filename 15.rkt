@@ -54,7 +54,10 @@ Sensor at x=20, y=1: closest beacon is at x=15, y=3
     ['() (list s0)]
     [(cons (and s1 (span st1 en1)) s*)
      (match* {(inside st1) (inside en1)}
-       [{#f #f} (cons s0 (merge-spans* s1 s*))]
+       [{#f #f} ;; test for adjacency
+                (if (inside (sub1 st1))
+                    (merge-spans* (span st0 en1) s*)
+                    (cons s0 (merge-spans* s1 s*)))]
        [{#f #t} (error 'merge-spans* "unreachable")]
        [{#t #f} (merge-spans* (span st0 en1) s*)]
        [{#t #t} (merge-spans* s0 s*)])]))
@@ -90,6 +93,40 @@ Sensor at x=20, y=1: closest beacon is at x=15, y=3
 
   (for/sum ([s (in-list merged-spans)])
     (span-size s)))
+
+(define (sensor-slice p d dl)
+  (define amt (- d dl))
+  (define sx (posn-x p))
+  (span (- sx amt) (+ sx amt)))
+
+(define (clamp-span lo hi s)
+  (span (max lo (span-start s))
+        (min hi (span-end s))))
+
+(define limit 4000000)
+
+(define (update-spans1 slices p d)
+  (match-define (posn px py) p)
+  (for/fold ([slices slices])
+            ([x (in-range (- py d) (+ py d))] #:when (<= 0 x limit))
+    (define s
+      (clamp-span 0 limit (sensor-slice p d (distance-line p x))))
+    (hash-update slices x (λ~>> (cons s)) null)))
+
+(define slices
+  (for/fold ([slices (hash)]) ([s+b input-stream])
+    (match-define (list s b) s+b)
+    (update-spans1 slices s (mdistance s b))))
+
+(define merged-slices
+  (for/fold ([slices (hash)]) ([(k v) (in-hash slices)])
+    (hash-set slices k (~> (sort v < #:key span-start) merge-spans))))
+#|
+15.rkt> (for/first ([(k v) (in-hash merged-slices)] #:when (not (null? (cdr v)))) (list k v))
+(list 2647448 (list (span 0 3131430) (span 3131432 4000000)))
+15.rkt> (+ (* limit 3131431) 2647448)
+12525726647448
+|#
 
 (module* part2 #f)
 
