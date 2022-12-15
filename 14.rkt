@@ -52,8 +52,8 @@
      (cons (read-coord inp) (read-tail))]))
 
 (define input-stream
-  (~>> #;(open-aoc-input (find-session) 2022 14 #:cache #t)
-       test-input
+  (~>> (open-aoc-input (find-session) 2022 14 #:cache #t)
+       #;test-input
        (in-port read-rock-path)
        sequence->stream))
 
@@ -94,16 +94,17 @@
 (define init-m* (list d dl dr))
 
 (define (next-move p env limit)
-  (define (step p m*)
+  (define (step cur-p p m*)
     (cond
-      [(null? m*) (if (= 500 p) #f p)]
+      [(null? m*) (cons cur-p p)]
       [else
-       (define p* (+ p (car m*)))
+       (define cur-p* (+ cur-p (car m*)))
        (cond
-         [(= limit (imag-part p*)) (step p (cdr m*))]
-         [(hash-has-key? env p*) (step p (cdr m*))]
-         [else (step p* init-m*)])]))
-  (step p init-m*))
+         [(or (= limit (imag-part cur-p*))
+              (hash-has-key? env cur-p*))
+          (step cur-p p (cdr m*))]
+         [else (step cur-p* (cons cur-p p) init-m*)])]))
+  (step (car p) (cdr p) init-m*))
 
 (define env
   (for/fold ([env (hash)]) ([p* input-stream])
@@ -114,11 +115,11 @@
             ([v (in-hash-keys env)])
     (if m (max m (imag-part v)) (imag-part v))))
 
-(for/fold ([env env] [i 0] #:result i)
+(for/fold ([env env] [path (list 500)] [i 0] #:result i)
           ([i (in-naturals 1)]
-           #:do [(define p (next-move 500 env limit))]
-           #:break (not p))
-  (values (hash-set env p 'sand) i))
+           #:do [(match-define (cons p path*) (next-move path env limit))]
+           #:break (null? path*))
+  (values (hash-set env p 'sand) path* i))
 
 (module* part1 #f)
 
