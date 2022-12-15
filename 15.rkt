@@ -71,26 +71,25 @@ Sensor at x=20, y=1: closest beacon is at x=15, y=3
        (in-port read-sensor)
        sequence->stream))
 
-(define target-row 2000000)
+(module* part1 #f
+  (define target-row 2000000)
 
-(define spans
-  (for/list ([s+b input-stream]
-             #:do [(match-define (list s b) s+b)
-                   (define dl (distance-line s target-row))
-                   (define db (mdistance s b))]
-             #:when (<= dl db))
-    (define amt (- db dl))
-    (define sx (posn-x s))
-    (span (- sx amt) (+ sx amt))))
+  (define spans
+    (for/list ([s+b input-stream]
+               #:do [(match-define (list s b) s+b)
+                     (define dl (distance-line s target-row))
+                     (define db (mdistance s b))]
+               #:when (<= dl db))
+      (define amt (- db dl))
+      (define sx (posn-x s))
+      (span (- sx amt) (+ sx amt))))
 
-(define merged-spans
-  (~> (sort spans < #:key span-start)
-      merge-spans))
+  (define merged-spans
+    (~> (sort spans < #:key span-start)
+        merge-spans))
 
-(for/sum ([s (in-list merged-spans)])
-  (span-size s))
-
-(module* part1 #f)
+  (for/sum ([s (in-list merged-spans)])
+    (span-size s)))
 
 (module* part2 #f)
 
