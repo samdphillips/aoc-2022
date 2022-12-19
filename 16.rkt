@@ -2,6 +2,7 @@
 
 (require advent-of-code
          graph
+         memoize
          syntax/parse/define
          threading)
 
@@ -40,24 +41,6 @@ Valve JJ has flow rate=21; tunnel leads to valve II
      (list name flow n*)]
     [v v]))
 
-(define input-stream
-  (~>> (open-aoc-input (find-session) 2022 16 #:cache #t)
-       #;test-input
-       (in-port read-node)
-       sequence->stream))
-
-(define-values (weights cave-graph)
-  (let ()
-    (define-values (w n)
-      (for/fold ([w (hash)] [n (hash)]) ([v input-stream])
-        (match-define (list name flow n*) v)
-        (values (hash-set w name flow)
-                (hash-set n name n*))))
-    (values w (weighted-graph/undirected
-               (for*/list ([(u v*) (in-hash n)]
-                            [v (in-list v*)])
-                 (list 1 u v))))))
-
 (define (write-dot-file filename graph vertex-label)
   (call-with-output-file filename
     #:exists 'replace
@@ -68,7 +51,7 @@ Valve JJ has flow rate=21; tunnel leads to valve II
                 (list (list 'label vertex-label))))))
 
 (define (vertex-label v)
-  (~a v "\n" (hash-ref weights v)))
+  (~a v "\n" (hash-ref flows v)))
 
 (define (remove-zero-flow-vertices! g start flows)
   (for ([(u w) (in-hash flows)]
@@ -97,8 +80,26 @@ Valve JJ has flow rate=21; tunnel leads to valve II
          (add-edge! g uv vv nw)]))
     (remove-vertex! g u)))
 
+(define input-stream
+  (~>> (open-aoc-input (find-session) 2022 16 #:cache #t)
+       #;test-input
+       (in-port read-node)
+       sequence->stream))
+
+(define-values (flows cave-graph)
+  (let ()
+    (define-values (w n)
+      (for/fold ([w (hash)] [n (hash)]) ([v input-stream])
+        (match-define (list name flow n*) v)
+        (values (hash-set w name flow)
+                (hash-set n name n*))))
+    (values w (weighted-graph/undirected
+               (for*/list ([(u v*) (in-hash n)]
+                            [v (in-list v*)])
+                 (list 1 u v))))))
+
 #;(write-dot-file "16t0.dot" cave-graph vertex-label)
-(remove-zero-flow-vertices! cave-graph 'AA weights)
+(remove-zero-flow-vertices! cave-graph 'AA flows)
 #;(write-dot-file "16t1.dot" cave-graph vertex-label)
 
 (define distance
@@ -107,42 +108,24 @@ Valve JJ has flow rate=21; tunnel leads to valve II
       (define d (hash-ref dt (list u v) #f))
       (and d (inexact->exact d)))))
 
-(define (trim-path p t)
-  (define (trim-path* u v p t)
-    (define dt (add1 (distance u v)))
-    (cond
-      [(< t dt) null]
-      [else
-       (define t* (- t dt))
-       (define flow (hash-ref weights v))
-       (define step (list t* flow v))
-       (cond
-         [(null? p) (list step)]
-         [else
-          (cons step (trim-path* v (car p) (cdr p) t*))])]))
-  (trim-path* (car p) (cadr p) (cddr p) t))
+(define to-visit
+  (set-remove (list->set (get-vertices cave-graph)) 'AA))
 
-(define (score-path p)
-  (for/sum ([x p])
-    (match-define (list a b _) x)
-    (* a b)))
-
-(define to-visit-vertices
-  (remq 'AA (get-vertices cave-graph)))
-
-(define all-paths
-  (sequence-map (lambda~>> (cons 'AA))
-                (in-permutations to-visit-vertices)))
+(define/memo (find-max cur rest ttl)
+  (define (cur-flow)
+    (* (sub1 ttl) (hash-ref flows cur)))
+  (cond
+    [(< ttl 1) 0]
+    [(set-empty? rest) (cur-flow)]
+    [else
+     (for/fold ([m 0]) ([v (in-set rest)])
+       (define v-flow
+         (find-max v (set-remove rest v) (- ttl (distance cur v) 1)))
+       (define t-flow (+ (cur-flow) v-flow))
+       (max m t-flow))]))
 
 (time
-  (for/fold ([best 0] [seq #f]) ([p all-paths] [n (in-naturals)])
-    (when (zero? (modulo n 10000))
-      (displayln (~a (~a #:min-width 9 n) " :: " best " :: " seq)))
-    (define p* (trim-path p 30))
-    (define s (score-path p*))
-    (if (> s best)
-        (values s (map caddr p*))
-        (values best seq))))
+  (find-max 'AA to-visit 31))
 
 (module* part1 #f)
 
