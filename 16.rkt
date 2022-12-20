@@ -2,7 +2,6 @@
 
 (require advent-of-code
          graph
-         memoize
          syntax/parse/define
          threading)
 
@@ -111,23 +110,56 @@ Valve JJ has flow rate=21; tunnel leads to valve II
 (define to-visit
   (set-remove (list->set (get-vertices cave-graph)) 'AA))
 
-(define/memo (find-max cur rest ttl)
-  (define (cur-flow)
-    (* (sub1 ttl) (hash-ref flows cur)))
-  (cond
-    [(< ttl 1) 0]
-    [(set-empty? rest) (cur-flow)]
-    [else
-     (for/fold ([m 0]) ([v (in-set rest)])
-       (define v-flow
-         (find-max v (set-remove rest v) (- ttl (distance cur v) 1)))
-       (define t-flow (+ (cur-flow) v-flow))
-       (max m t-flow))]))
 
-(time
-  (find-max 'AA to-visit 31))
+(module* part1 #f
+  (define (find-max cur rest ttl)
+    (define (cur-flow)
+      (* (sub1 ttl) (hash-ref flows cur)))
+    (cond
+      [(< ttl 1) 0]
+      [(set-empty? rest) (cur-flow)]
+      [else
+       (for/fold ([m 0]) ([v (in-set rest)])
+         (define v-flow
+           (find-max v (set-remove rest v) (- ttl (distance cur v) 1)))
+         (define t-flow (+ (cur-flow) v-flow))
+         (max m t-flow))]))
 
-(module* part1 #f)
+  (time
+    (find-max 'AA to-visit 31)))
 
-(module* part2 #f)
+(module* part2 #f
+  (define (find-max cur0 d0 cur1 d1 rest ttl)
+    (define (rest-flow n) (* ttl (hash-ref flows n)))
+    (define (prune-reachable)
+      (for/set ([vertex (in-set rest)]
+                #:when
+                (or (< (distance cur0 vertex) ttl)
+                    (< (distance cur1 vertex) ttl)))
+        vertex))
+    (cond
+      [(and (> d0 ttl) (> d1 ttl)) 0]
+      [(zero? d0)
+       (cond
+         [(set-empty? rest)
+          (+ (find-max cur1 d1 #f +inf.0 rest ttl)
+             (rest-flow cur0))]
+         [(zero? ttl) 0]
+         [else
+          (define rest (prune-reachable))
+          (for/fold ([m 0]) ([v (in-set rest)])
+            (define v-flow
+              (find-max cur1 d1
+                        v (add1 (distance cur0 v))
+                        (set-remove rest v) ttl))
+            (define t-flow (+ (rest-flow cur0) v-flow))
+            (max m t-flow))])]
+      [else
+       (define-values (d ncur0 nd0 ncur1 nd1)
+         (if (< d0 d1)
+             (values d0 cur0 0 cur1 (- d1 d0))
+             (values d1 cur1 0 cur0 (- d0 d1))))
+       (find-max ncur0 nd0 ncur1 nd1 rest (- ttl d))]))
 
+  (time
+    (find-max 'AA 0 'AA 0 to-visit 26)))
