@@ -105,11 +105,10 @@ Valve JJ has flow rate=21; tunnel leads to valve II
   (let ([dt (floyd-warshall cave-graph)])
     (λ (u v)
       (define d (hash-ref dt (list u v) #f))
-      (and d (inexact->exact d)))))
+      (if d (inexact->exact d) +inf.0))))
 
 (define to-visit
   (set-remove (list->set (get-vertices cave-graph)) 'AA))
-
 
 (module* part1 #f
   (define (find-max cur rest ttl)
@@ -130,15 +129,20 @@ Valve JJ has flow rate=21; tunnel leads to valve II
 
 (module* part2 #f
   (define (find-max cur0 d0 cur1 d1 rest ttl)
-    (define (rest-flow n) (* ttl (hash-ref flows n)))
+    (define (rest-flow n [ttl ttl]) (* ttl (hash-ref flows n)))
     (define (prune-reachable)
       (for/set ([vertex (in-set rest)]
                 #:when
                 (or (< (distance cur0 vertex) ttl)
                     (< (distance cur1 vertex) ttl)))
         vertex))
+    (define (diff d) (- ttl d))
     (cond
-      [(and (> d0 ttl) (> d1 ttl)) 0]
+      [(and (< (diff d0) 2) (< (diff d1) 2)) 0]
+      [(< (diff d0) 2)
+       (find-max cur1 d1 #f +inf.0 rest ttl)]
+      [(and (not (= +inf.0 d1)) (< (diff d1) 2))
+       (find-max cur0 d0 #f +inf.0 rest ttl)]
       [(zero? d0)
        (cond
          [(set-empty? rest)
@@ -147,12 +151,14 @@ Valve JJ has flow rate=21; tunnel leads to valve II
          [(zero? ttl) 0]
          [else
           (define rest (prune-reachable))
+          (define cur-flow (rest-flow cur0))
           (for/fold ([m 0]) ([v (in-set rest)])
             (define v-flow
               (find-max cur1 d1
                         v (add1 (distance cur0 v))
-                        (set-remove rest v) ttl))
-            (define t-flow (+ (rest-flow cur0) v-flow))
+                        (set-remove rest v)
+                        ttl))
+            (define t-flow (+ cur-flow v-flow))
             (max m t-flow))])]
       [else
        (define-values (d ncur0 nd0 ncur1 nd1)
@@ -162,4 +168,4 @@ Valve JJ has flow rate=21; tunnel leads to valve II
        (find-max ncur0 nd0 ncur1 nd1 rest (- ttl d))]))
 
   (time
-    (find-max 'AA 0 'AA 0 to-visit 26)))
+    (find-max 'AA 0 'AA 0 to-visit 18)))
