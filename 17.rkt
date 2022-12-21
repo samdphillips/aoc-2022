@@ -106,9 +106,71 @@
      (define r (next-rock))
      (simulate-rock r jets)]))
 
+(define nd (list (posn -1 0) (posn 1 0) (posn 0 -1)))
+
+(define (heap-split-at* hd tl seen min-y heap)
+  #;(pretty-write `(heap-split-at* ,hd ,tl ,seen ,min-y))
+  (define (dequeue) (values (car hd) (cdr hd)))
+  (define (enqueue v tl) (if (set-member? seen v) tl (cons v tl)))
+  (define (enqueue-neighbors w)
+    (cond
+      [(set-member? seen w) tl]
+      [else
+        (for/fold ([tl tl]) ([n (in-list nd)])
+          (define w* (p+ w n))
+          (cond
+            [(posn-collision? heap w*) tl]
+            [else (enqueue w* tl)]))]))
+  (cond
+    [(and (null? hd) (null? tl)) (sub1 min-y)]
+    [(null? hd) (heap-split-at* (reverse tl) null seen min-y heap)]
+    [else
+     (define-values (w hd*) (dequeue))
+     (heap-split-at* hd*
+                     (enqueue-neighbors w)
+                     (set-add seen w)
+                     (min (py w) min-y)
+                     heap)]))
+
+(define (prune-heap heap heap-bottom)
+  (define d (posn 0 (- heap-bottom)))
+  (for/set ([v (in-set heap)]
+            #:unless (< (py v) heap-bottom))
+    (p+ v d)))
+
+(define (heap-split-at heap heap-top)
+  (heap-split-at* (list (posn 0 (add1 heap-top))) null (set) (add1 heap-top) heap))
+
+(define (simulate/gc rocks jets heap heap-top heap-bottom nrocks crocks)
+  #;(pretty-write (list heap-top heap-bottom nrocks))
+  (cond
+    [(zero? nrocks) (+ heap-top heap-bottom)]
+    [else
+     (define heap-bottom*
+       (heap-split-at heap heap-top))
+     (define heap* (prune-heap heap heap-bottom*))
+     (define heap-top* (- heap-top heap-bottom*))
+     (define-values (rocks* jets* heap** heap-top**)
+       (simulate rocks jets heap* heap-top* crocks))
+     (define nrocks* (- nrocks crocks))
+     (simulate/gc rocks*
+                  jets*
+                  heap**
+                  heap-top**
+                  (+ heap-bottom* heap-bottom)
+                  nrocks*
+                  (min crocks nrocks*))]))
+
+#;(time (simulate/gc rocks jets init-heap 0 0 1000000000000 1000))
+(time (simulate/gc rocks jets init-heap 0 0 500000 1000))
+
 (module* part1 #f
   (define-values (rocks* jets* heap heap-top)
     (simulate rocks jets init-heap 0 2022))
   heap-top)
 
-(module* part2 #f)
+(module* part2 #f
+  (define-values (rocks* jets* heap heap-top)
+    (time
+     (simulate rocks jets init-heap 0 50000 #;1000000000000)))
+  heap-top)
